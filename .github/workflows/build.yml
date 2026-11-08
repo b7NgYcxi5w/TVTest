@@ -2,40 +2,44 @@ name: Build TVTest
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ master, main, develop ]
   pull_request:
-    branches: [ develop ]
+    branches: [ master, main, develop ]
+  workflow_dispatch: # 手動実行を有効化
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      # 1. リポジトリのチェックアウト（サブモジュールがある場合は recursive を推奨）
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # 2. MSBuildのセットアップ（パスを通す）
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      # 3. 32bit (x86) 版のビルド
+      # NuGetパッケージの復元が必要な場合（依存関係エラー対策）
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v1
+
+      - name: Restore NuGet Packages
+        run: nuget restore src/TVTest.sln
+        # ※ slnファイルの場所がリポジトリ直下なら "TVTest.sln" や "TVTest/TVTest.sln" に変更してください
+
       - name: Build x86 (Release)
         run: |
-          msbuild TVTest/src/TVTest.sln /p:Configuration=Release /p:Platform=Win32 /m
+          msbuild src/TVTest.sln /p:Configuration=Release /p:Platform=Win32 /m
 
-      # 4. 64bit (x64) 版のビルド
       - name: Build x64 (Release)
         run: |
-          msbuild TVTest/src/TVTest.sln /p:Configuration=Release /p:Platform=x64 /m
+          msbuild src/TVTest.sln /p:Configuration=Release /p:Platform=x64 /m
 
-      # 5. ビルド成果物のアップロード（Actionsのタブからダウンロード可能にする）
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: TVTest-Binaries
           path: |
-            TVTest/src/Release/
-            TVTest/src/x64/Release/
+            src/Release/
+            src/x64/Release/
