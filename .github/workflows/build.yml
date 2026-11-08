@@ -2,9 +2,9 @@ name: Build TVTest
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ develop ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ develop ]
 
 jobs:
   build:
