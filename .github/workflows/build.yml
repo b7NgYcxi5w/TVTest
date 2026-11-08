@@ -5,7 +5,7 @@ on:
     branches: [ master, main, develop ]
   pull_request:
     branches: [ master, main, develop ]
-  workflow_dispatch: # 手動実行を有効化
+  workflow_dispatch:
 
 jobs:
   build:
@@ -20,26 +20,26 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      # NuGetパッケージの復元が必要な場合（依存関係エラー対策）
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v1
 
+      # リポジトリ内のどこに sln があるかによってパスを変更してください
+      # 例: リポジトリの直下にあるなら "TVTest.sln"、srcフォルダ内なら "src/TVTest.sln"
       - name: Restore NuGet Packages
-        run: nuget restore src/TVTest.sln
-        # ※ slnファイルの場所がリポジトリ直下なら "TVTest.sln" や "TVTest/TVTest.sln" に変更してください
+        run: nuget restore TVTest.sln
 
       - name: Build x86 (Release)
         run: |
-          msbuild src/TVTest.sln /p:Configuration=Release /p:Platform=Win32 /m
+          msbuild TVTest.sln /p:Configuration=Release /p:Platform=Win32 /m
 
       - name: Build x64 (Release)
         run: |
-          msbuild src/TVTest.sln /p:Configuration=Release /p:Platform=x64 /m
+          msbuild TVTest.sln /p:Configuration=Release /p:Platform=x64 /m
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: TVTest-Binaries
           path: |
-            src/Release/
-            src/x64/Release/
+            Release/
+            x64/Release/
