@@ -2,44 +2,41 @@ name: Build TVTest
 
 on:
   push:
-    branches: [ master, main, develop ]
+    branches: [ "master", "develop" ]
   pull_request:
-    branches: [ master, main, develop ]
-  workflow_dispatch:
+    branches: [ "master", "develop" ]
+  workflow_dispatch: # GitHub上で手動実行できるようにする
 
 jobs:
   build:
     runs-on: windows-latest
 
+    strategy:
+      matrix:
+        configuration: [Release]
+        platform: [x86, x64] # 必要に応じてどちらか一方に絞ることも可能
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          repository: 'DBCTRADO/TVTest'
+          ref: 'develop' # 必要に応じて master やタグに変更
           submodules: recursive
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@v1
-
-      # リポジトリ内のどこに sln があるかによってパスを変更してください
-      # 例: リポジトリの直下にあるなら "TVTest.sln"、srcフォルダ内なら "src/TVTest.sln"
-      - name: Restore NuGet Packages
-        run: nuget restore TVTest.sln
-
-      - name: Build x86 (Release)
+      - name: Build TVTest solution
         run: |
-          msbuild TVTest.sln /p:Configuration=Release /p:Platform=Win32 /m
-
-      - name: Build x64 (Release)
-        run: |
-          msbuild TVTest.sln /p:Configuration=Release /p:Platform=x64 /m
+          msbuild src\TVTest.sln /p:Configuration=${{ matrix.configuration }} /p:Platform=${{ matrix.platform }} /m
+        shell: cmd
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TVTest-Binaries
+          name: TVTest-${{ matrix.platform }}-${{ matrix.configuration }}
           path: |
-            Release/
-            x64/Release/
+            src/${{ matrix.platform }}/${{ matrix.configuration }}/*.exe
+            src/${{ matrix.platform }}/${{ matrix.configuration }}/*.dll
+          
