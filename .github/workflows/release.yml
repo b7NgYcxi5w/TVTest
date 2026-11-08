@@ -1,0 +1,69 @@
+name: Build and Release TVTest
+
+on:
+  push:
+    tags:
+      - 'v*' # v1.0.0 などのタグがプッシュされたときに実行される
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    permissions:
+      contents: write # GitHub Releasesへの書き込み権限を付与
+
+    steps:
+      # 1. リポジトリのチェックアウト（サブモジュールも含む）
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # 2. MSBuildのセットアップ
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      # 3. TVTest本体・プラグインのビルド (x86 / x64)
+      # ※ ソリューションのパスやプラグインのプロジェクト構成に合わせて適宜変更してください
+      - name: Build Solution (x86 & x64)
+        run: |
+          Write-Host "Building x86..."
+          msbuild TVTest/src/TVTest.sln /p:Configuration=Release /p:Platform=Win32 /m
+
+          Write-Host "Building x64..."
+          msbuild TVTest/src/TVTest.sln /p:Configuration=Release /p:Platform=x64 /m
+
+      # 4. 配布用フォルダの整理（ZIPにまとめる準備）
+      - name: Organize Artifacts
+        run: |
+          New-Item -ItemType Directory -Force -Path "publish/x86/Plugins"
+          New-Item -ItemType Directory -Force -Path "publish/x64/Plugins"
+
+          # 32bit版の成果物をコピー (パスは環境に合わせて調整してください)
+          Copy-Item "TVTest/src/Release/TVTest.exe" "publish/x86/" -ErrorAction SilentlyContinue
+          Copy-Item "TVTest/src/Release/*.dll" "publish/x86/" -ErrorAction SilentlyContinue
+          # プラグインのビルド成果物がある場合
+          # Copy-Item "TVTest/src/Release/Plugins/*.tvtp" "publish/x86/Plugins/" -ErrorAction SilentlyContinue
+
+          # 64bit版の成果物をコピー
+          Copy-Item "TVTest/src/src/x64/Release/TVTest.exe" "publish/x64/" -ErrorAction SilentlyContinue
+          Copy-Item "TVTest/src/src/x64/Release/*.dll" "publish/x64/" -ErrorAction SilentlyContinue
+          # Copy-Item "TVTest/src/src/x64/Release/Plugins/*.tvtp" "publish/x64/Plugins/" -ErrorAction SilentlyContinue
+
+      # 5. それぞれZIPに圧縮
+      - name: Archive Binaries
+        run: |
+          Compress-Archive -Path "publish/x86/*" -DestinationPath "TVTest_x86.zip" -Force
+          Compress-Archive -Path "publish/x64/*" -DestinationPath "TVTest_x64.zip" -Force
+
+      # 6. GitHub Releasesへ自動アップロード
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            TVTest_x86.zip
+            TVTest_x64.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
